@@ -1,8 +1,30 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <PackageIcon>AgileBanking.ico</PackageIcon>
+    <PackageIconUrl />
+    <ApplicationIcon>AgileBanking.ico</ApplicationIcon>
+    <Authors>Michael Croal And Brent Croal</Authors>
+    <Company>Agile Banking Consulting LLC</Company>
+    <Description>Transforms a CorServ output file into a Fiserv DNA External input file</Description>
+    <Copyright>Agile Banking Consulting LLC (C) 2021</Copyright>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\CorServCreditProductName\CorServCreditProductName\AgileBanking.ico">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="AgileBanking.ico">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>
