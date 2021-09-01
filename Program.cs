@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 9/01/2021  Trim card product and generate WF GIM Repair error files    
  * 7/29/2021  Don't divide interest rate by 100   
  * 6/22/2021  Default    
 */
@@ -20,6 +21,8 @@ namespace CorServCreditCardETL
                 string useInfile = ConfigurationManager.AppSettings["Infile"].ToString();
                 string useOutfile = ConfigurationManager.AppSettings["Outfile"].ToString();
                 useOutfile = useOutfile.Replace("~", filedate);
+                string useErrorfile = ConfigurationManager.AppSettings["ErrorFile"].ToString();
+                useErrorfile = useErrorfile.Replace("~", filedate);
                 string useAppSetting = ConfigurationManager.AppSettings["AppSetting"].ToString();
                 string BackupYN = "N";
                 try
@@ -58,7 +61,7 @@ namespace CorServCreditCardETL
                         if (Counter > 0)
                         {
                             string CreditCardProducts = str.Substring(str.IndexOf("Mastercard"), str.IndexOf("\t", str.IndexOf("Mastercard")) - str.IndexOf("Mastercard"));
-                            CreditCardProducts = CreditCardProducts.Replace("®", "");
+                            CreditCardProducts = CreditCardProducts.Replace("®", "").Trim();
                             //Console.WriteLine(CreditCardProducts);
                             Int32 found = 0;
 
@@ -181,7 +184,10 @@ namespace CorServCreditCardETL
 
                             if (found == 0)
                             {
-                                Console.WriteLine("Product name " + CreditCardProducts + " Not found in " + useAppSetting);
+                                string ErrorLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "Notification".PadRight(100).Substring(0, 25) + "||CORSERV|Product name " + CreditCardProducts + " Not found in " + useAppSetting;
+                                File.AppendAllText(useErrorfile, ErrorLine);
+                                
+                                Console.WriteLine(ErrorLine);
                                 Console.WriteLine("Press any key to exit.");
                                 Console.ReadKey();
                                 Environment.Exit(9);
@@ -202,6 +208,10 @@ namespace CorServCreditCardETL
                 }
                 catch (Exception ex)
                 {
+                    string error = ex.ToString();
+                    string ErrorLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "Notification".PadRight(100).Substring(0, 25) + "||CORSERV|" + error.Substring(0, 230);
+                    File.AppendAllText(useErrorfile, ErrorLine);
+
                     Console.WriteLine("Error: " + ex);
                     Console.WriteLine("Press any key to exit.");
                     Console.ReadKey();
