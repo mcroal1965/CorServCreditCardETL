@@ -4,7 +4,10 @@ using System.Xml;
 using System.Configuration;
 using System.Collections.Generic;
 using System.Linq;
-
+/*   CHANGE LOG
+ * 7/29/2021  Don't divide interest rate by 100   
+ * 6/22/2021  Default    
+*/
 namespace CorServCreditCardETL
 {
     class Program
@@ -128,7 +131,7 @@ namespace CorServCreditCardETL
                                         string Phone_17 = linein.ElementAt(10).Trim();
                                         Phone_17 = Phone_17.PadRight(100).Substring(6, 4);
                                         string Gap_18 = "".PadRight(10);
-                                        string Intrate_19 = Convert.ToString(Convert.ToDecimal(linein.ElementAt(13)) / 100).PadRight(100).Substring(0, 15);
+                                        string Intrate_19 = Convert.ToString(Convert.ToDecimal(linein.ElementAt(13)) ).PadRight(100).Substring(0, 15);
                                         string Gap_20 = "".PadRight(15);
                                         string AvailableCredit_21 = linein.ElementAt(17).Trim();
                                         AvailableCredit_21 = AvailableCredit_21.PadRight(100).Substring(0, 15);
