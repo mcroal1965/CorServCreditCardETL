@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 10/20/2021 Use AcctID instead of last 4 for account number and generate GIM records for not open cards  
  * 9/01/2021  Trim card product and generate WF GIM Repair error files    
  * 7/29/2021  Don't divide interest rate by 100   
  * 6/22/2021  Default    
@@ -49,6 +50,8 @@ namespace CorServCreditCardETL
                     string PType_06 = "";
                     string Name01out = "";
                     string Name02out = "";
+                    string Name01outError = "";
+                    string Name02outError = "";
                     string[] Name01split;
                     string[] Name02split;
 
@@ -79,11 +82,25 @@ namespace CorServCreditCardETL
                                 if (CreditCardProducts == ProductName)
                                 {
                                     string TaxId_01a = linein.ElementAt(1).Trim();
+                                    /*Int64 TaxId_01a2 = 0;
+                                    if (TaxId_01a.Trim() != "")
+                                    {
+                                        TaxId_01a2 = 7 * Int64.Parse(TaxId_01a);
+                                    }*/
                                     TaxId_01a = TaxId_01a.PadRight(100).Substring(0, 9);
                                     string TaxId_01b = linein.ElementAt(2).Trim();
+                                    /*Int64 TaxId_01b2 = 0;
+                                    if (TaxId_01b.Trim() != "")
+                                    {
+                                        TaxId_01b2 = 7 * Int64.Parse(TaxId_01b);
+                                    }*/
                                     TaxId_01b = TaxId_01b.PadRight(100).Substring(0, 9);
                                     string AcctNum_02 = linein.ElementAt(20).Trim();
-                                    AcctNum_02 = AcctNum_02.PadRight(100).Substring(0, 30);
+                                    string AcctId = linein.ElementAt(21).Trim();
+                                    int AcctIdLength = AcctId.Length;
+                                    AcctId = AcctId.Substring(2, AcctIdLength-2).PadRight(100).Substring(0, 30);
+                                    //string AcctNum_02a = (AcctNum_02.ToString() + TaxId_01a2.ToString()).PadRight(100).Substring(0, 30);
+                                    //string AcctNum_02b = (AcctNum_02.ToString() + TaxId_01b2.ToString()).PadRight(100).Substring(0, 30);
                                     string MajorCode_03 = "EXT ";
                                     string MinorCode_04 = ProductCode;
                                     string Name_05a = linein.ElementAt(3).Trim();
@@ -92,10 +109,12 @@ namespace CorServCreditCardETL
                                     if (PType_06 == "O")
                                     {
                                         Name01out = Name_05a.PadRight(100).Substring(0, 40);
+                                        Name01outError = Name_05a.Trim();
 
                                         if (Name_05b.Trim() != "")
                                         {
                                             Name02out = Name_05b.PadRight(100).Substring(0, 40);
+                                            Name02outError = Name_05b.Trim();
                                         }
                                     }
                                     else
@@ -104,12 +123,14 @@ namespace CorServCreditCardETL
                                         Name01split = Name_05a.Split(sep.ToCharArray());
                                         int result1 = Name_05a.ToCharArray().Count(c => c == ' ');
                                         Name01out = Name01split.ElementAt(0).PadRight(100).Substring(0, 20) + Name01split.ElementAt(result1).PadRight(100).Substring(0, 20);
+                                        Name01outError = Name01split.ElementAt(0).Trim() + " " + Name01split.ElementAt(result1).Trim();
 
                                         if (Name_05b.Trim() != "")
                                         {
                                             Name02split = Name_05b.Split(sep.ToCharArray());
                                             int result2 = Name_05b.ToCharArray().Count(c => c == ' ');
                                             Name02out = Name02split.ElementAt(0).PadRight(100).Substring(0, 20) + Name02split.ElementAt(result2).PadRight(100).Substring(0, 20);
+                                            Name02outError = Name02split.ElementAt(0).Trim() + " " + Name02split.ElementAt(result2).Trim();
                                         }
                                     }
                                     string Gap_07 = "".PadRight(4);
@@ -161,7 +182,7 @@ namespace CorServCreditCardETL
 
                                     if (linein.ElementAt(19) == "Open" && linein.ElementAt(20) != "")
                                     {
-                                        string lineout = TaxId_01a + AcctNum_02 + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
+                                        string lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
                                         /*
                                         int x = 0;
                                         while (x < 29)
@@ -174,7 +195,7 @@ namespace CorServCreditCardETL
 
                                         if (TaxId_01b.Trim() != "")
                                         {
-                                            string lineout2 = TaxId_01b + AcctNum_02 + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
+                                            string lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
                                             File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
                                         }
                                     }
@@ -184,12 +205,12 @@ namespace CorServCreditCardETL
                                         {
                                             if (Name01out == "".PadRight(100).Substring(0, 40) || Name01out is null)
                                             {
-                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctNum_02 + "|" + TaxId_01a + "-" + Name02out + "\n";
+                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctNum_02.Trim() + "|" + TaxId_01a.Trim() + "-" + Name02outError.Trim() + "\n";
                                                 File.AppendAllText(useErrorfile, CardLine);
                                             }
                                             else
                                             {
-                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctNum_02 + "|" + TaxId_01a + "-" + Name01out + "\n";
+                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctNum_02.Trim() + "|" + TaxId_01a.Trim() + "-" + Name01outError.Trim() + "\n";
                                                 File.AppendAllText(useErrorfile, CardLine);
                                             }
                                         }
@@ -200,7 +221,7 @@ namespace CorServCreditCardETL
 
                             if (found == 0)
                             {
-                                string ErrorLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "Notification".PadRight(100).Substring(0, 25) + "||CORSERV|Product name " + CreditCardProducts + " Not found in " + useAppSetting;
+                                string ErrorLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "Notification".PadRight(100).Substring(0, 25) + "||CORSERV|Product name " + CreditCardProducts.Trim() + " Not found in " + useAppSetting.Trim();
                                 File.AppendAllText(useErrorfile, ErrorLine);
                                 
                                 Console.WriteLine(ErrorLine);
