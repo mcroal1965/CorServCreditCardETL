@@ -2,9 +2,12 @@
 using System.IO;
 using System.Xml;
 using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 03/16/2022 Update dbo.CORSERV_ACCT_OPENED_BY  
  * 10/20/2021 Use AcctID instead of last 4 for account number and generate GIM records for not open cards  
  * 9/01/2021  Trim card product and generate WF GIM Repair error files    
  * 7/29/2021  Don't divide interest rate by 100   
@@ -18,6 +21,10 @@ namespace CorServCreditCardETL
         {
             try
             {
+                string dbserver = ConfigurationManager.AppSettings["DBServer"].ToString();
+                string dbdatabase = ConfigurationManager.AppSettings["DBDatabase"].ToString();
+                string dbtable = ConfigurationManager.AppSettings["DBTable"].ToString();
+
                 string filedate = DateTime.Today.ToString("yyyyMMdd");
                 string useInfile = ConfigurationManager.AppSettings["Infile"].ToString();
                 string useOutfile = ConfigurationManager.AppSettings["Outfile"].ToString();
@@ -96,9 +103,10 @@ namespace CorServCreditCardETL
                                     }*/
                                     TaxId_01b = TaxId_01b.PadRight(100).Substring(0, 9);
                                     string AcctNum_02 = linein.ElementAt(20).Trim();
-                                    string AcctId = linein.ElementAt(21).Trim();
+                                    string AcctId = linein.ElementAt(21).Trim();                                    
                                     int AcctIdLength = AcctId.Length;
                                     AcctId = AcctId.Substring(2, AcctIdLength-2).PadRight(100).Substring(0, 30);
+                                    string LoanOfficer = linein.ElementAt(31).Trim();
                                     //string AcctNum_02a = (AcctNum_02.ToString() + TaxId_01a2.ToString()).PadRight(100).Substring(0, 30);
                                     //string AcctNum_02b = (AcctNum_02.ToString() + TaxId_01b2.ToString()).PadRight(100).Substring(0, 30);
                                     string MajorCode_03 = "EXT ";
@@ -197,6 +205,51 @@ namespace CorServCreditCardETL
                                         {
                                             string lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
                                             File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                        }
+
+                                        if (LoanOfficer.Trim() != "" && LoanOfficer.Trim() != null)
+                                        {        
+                                            
+                                            String sqlCmd = "Insert Into " + dbtable + " ([AccountID], [LoanOfficerFInancialAdvisor], [NAME1SSN], [Last4OfCard]) Values ('" + AcctId.Trim() + "', '" + LoanOfficer.Trim() + "', '" + TaxId_01a.Trim() + "', '" + AcctNum_02 + "')";
+                                            String connectionString = "Server=" + dbserver + ";Database=" + dbdatabase + ";User Id=viewer;Password=cprt_hsi";
+
+                                            using (SqlConnection connection = new SqlConnection(connectionString))  //connect to the sql server
+                                            using (SqlCommand cmd = connection.CreateCommand())  //start a  sql command
+                                            {
+                                                try
+                                                {
+                                                    //see if the document name extracted from the filename is in the mapping table
+                                                    cmd.CommandText = sqlCmd;  //set the commandtext to the sqlcmd
+                                                    cmd.CommandType = CommandType.Text;  //set it as a text command
+                                                    try
+                                                    {
+                                                        connection.Open();  //open the sql server connection to the database
+                                                    }
+                                                    catch
+                                                    {
+                                                        Console.WriteLine("SQL Server not available.");
+                                                        Console.WriteLine("Press any key to exit.");
+                                                        Console.ReadKey();
+                                                        Environment.Exit(1);
+                                                    }
+                                                    try
+                                                    {
+                                                        int rowsadded = cmd.ExecuteNonQuery();  //run the command and store the row count inserted
+                                                    }
+                                                    catch
+                                                    {
+                                                        Console.WriteLine("Primary key already exists.");
+                                                    }
+                                                    connection.Close();  //close the sql server connection to the database
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    Console.WriteLine("Error: " + ex);
+                                                    Console.WriteLine("Press any key to exit.");
+                                                    Console.ReadKey();
+                                                    Environment.Exit(1);
+                                                }
+                                            }
                                         }
                                     }
                                     else
