@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ *   04/01/2022 Use DEBUG appsetting to writeconsole lines
  * 03/16/2022 Update dbo.CORSERV_ACCT_OPENED_BY  
  * 10/20/2021 Use AcctID instead of last 4 for account number and generate GIM records for not open cards  
  * 9/01/2021  Trim card product and generate WF GIM Repair error files    
@@ -31,8 +32,19 @@ namespace CorServCreditCardETL
                 useOutfile = useOutfile.Replace("~", filedate);
                 string useErrorfile = ConfigurationManager.AppSettings["ErrorFile"].ToString();
                 useErrorfile = useErrorfile.Replace("~", filedate);
+                try { File.Delete(useErrorfile); } catch { }
                 string useAppSetting = ConfigurationManager.AppSettings["AppSetting"].ToString();
                 string BackupYN = "N";
+                string DebugYN = "N";
+                try
+                {
+                    DebugYN = ConfigurationManager.AppSettings["Debug"].ToString();
+                }
+                catch
+                {
+                    Console.WriteLine("DebugYN value in config file is not configured properly and has been defaulted to N.");
+                    DebugYN = "N";
+                }
                 try
                 {
                     BackupYN = ConfigurationManager.AppSettings["Backup"].ToString();
@@ -234,11 +246,14 @@ namespace CorServCreditCardETL
                                                     }
                                                     try
                                                     {
+                                                        if (DebugYN == "Y")
+                                                        { Console.WriteLine("Executing sql query:" + sqlCmd); }
                                                         int rowsadded = cmd.ExecuteNonQuery();  //run the command and store the row count inserted
                                                     }
-                                                    catch
+                                                    catch (Exception ex)
                                                     {
-                                                        Console.WriteLine("Primary key already exists.");
+                                                        if (DebugYN == "Y")
+                                                        { Console.WriteLine("Unable to insert: " + ex);}
                                                     }
                                                     connection.Close();  //close the sql server connection to the database
                                                 }
@@ -294,7 +309,8 @@ namespace CorServCreditCardETL
                         File.Copy(useInfile, Renamefile, true);
                     }
 
-                    File.Delete(useInfile);
+                    if (DebugYN == "N")
+                    { File.Delete(useInfile); }
                 }
                 catch (Exception ex)
                 {
