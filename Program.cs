@@ -17,22 +17,25 @@ namespace CorServCreditCardETL
 {
     class Program
     {
-        static void Main()
+        public static string dbserver = ConfigurationManager.AppSettings["DBServer"].ToString();
+        public static string dbdatabase = ConfigurationManager.AppSettings["DBDatabase"].ToString();
+        public static string dbtable = ConfigurationManager.AppSettings["DBTable"].ToString();
+
+        public static string filedate = DateTime.Today.ToString("yyyyMMdd");
+        public static string useInfile = ConfigurationManager.AppSettings["Infile"].ToString();
+        public static string useOutfile = ConfigurationManager.AppSettings["Outfile"].ToString().Replace("~", filedate);
+
+        public static string useErrorfile = ConfigurationManager.AppSettings["ErrorFile"].ToString().Replace("~", filedate);
+
+        public static string useAppSetting = ConfigurationManager.AppSettings["AppSetting"].ToString();
+        public static string BackupYN = "N";
+
+        public static String connectionString = "Server=" + dbserver + ";Database=" + dbdatabase + @";User Id=viewer;Password=cprt_hsi";
+
+        public static void Main()
         {
             try
             {
-                string dbserver = ConfigurationManager.AppSettings["DBServer"].ToString();
-                string dbdatabase = ConfigurationManager.AppSettings["DBDatabase"].ToString();
-                string dbtable = ConfigurationManager.AppSettings["DBTable"].ToString();
-
-                string filedate = DateTime.Today.ToString("yyyyMMdd");
-                string useInfile = ConfigurationManager.AppSettings["Infile"].ToString();
-                string useOutfile = ConfigurationManager.AppSettings["Outfile"].ToString();
-                useOutfile = useOutfile.Replace("~", filedate);
-                string useErrorfile = ConfigurationManager.AppSettings["ErrorFile"].ToString();
-                useErrorfile = useErrorfile.Replace("~", filedate);
-                string useAppSetting = ConfigurationManager.AppSettings["AppSetting"].ToString();
-                string BackupYN = "N";
                 try
                 {
                     BackupYN = ConfigurationManager.AppSettings["Backup"].ToString();
@@ -182,7 +185,7 @@ namespace CorServCreditCardETL
                                     MinPayment_31 = MinPayment_31.PadRight(100).Substring(0, 15);
                                     string Gap_32 = "".PadRight(94);
                                     string Static_33 = "NOTE/BAL ";
-                                    string CurrentBal_34 = linein.ElementAt(14).Trim(); //was 15
+                                    string CurrentBal_34 = linein.ElementAt(14).Trim(); //was 15 
                                     CurrentBal_34 = CurrentBal_34.PadRight(100).Substring(0, 15);
                                     string Datadate_35 = linein.ElementAt(0).Trim();
                                     Datadate_35 = Datadate_35.Replace("/", "").PadRight(100).Substring(0, 8);
@@ -190,7 +193,20 @@ namespace CorServCreditCardETL
 
                                     if (linein.ElementAt(19) == "Open" && linein.ElementAt(20) != "")
                                     {
+                                        if (ProductType.Trim().ToUpper() == "BUSINESS" && Name02out.Trim().ToUpper() != "ACCOUNTS PAYABLE" && (TaxId_01b.Trim() == "" || TaxId_01b.Trim() is null))
+                                        {
+                                            string busienssTaxID = GetBusinessTaxId(TaxId_01a, Name01out);
+
+                                            if (busienssTaxID != TaxId_01a)
+                                            {
+                                                Console.WriteLine("Swapped " + TaxId_01a + " with " + busienssTaxID);
+                                                PType_06 = "X";
+                                                TaxId_01a = busienssTaxID;
+                                            }                                            
+                                        }
+
                                         string lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
+                                        
                                         /*
                                         int x = 0;
                                         while (x < 29)
@@ -208,10 +224,8 @@ namespace CorServCreditCardETL
                                         }
 
                                         if (LoanOfficer.Trim() != "" && LoanOfficer.Trim() != null)
-                                        {        
-                                            
-                                            String sqlCmd = "Insert Into " + dbtable + " ([AccountID], [LoanOfficerFInancialAdvisor], [NAME1SSN], [Last4OfCard]) Values ('" + AcctId.Trim() + "', '" + LoanOfficer.Trim() + "', '" + TaxId_01a.Trim() + "', '" + AcctNum_02 + "')";
-                                            String connectionString = "Server=" + dbserver + ";Database=" + dbdatabase + ";User Id=viewer;Password=cprt_hsi";
+                                        {       
+                                            String sqlCmd = "Insert Into " + dbtable + " ([AccountID], [LoanOfficerFInancialAdvisor], [NAME1SSN], [Last4OfCard]) Values ('" + AcctId.Trim() + "', '" + LoanOfficer.Trim() + "', '" + TaxId_01a.Trim() + "', '" + AcctNum_02 + "')";                                            
 
                                             using (SqlConnection connection = new SqlConnection(connectionString))  //connect to the sql server
                                             using (SqlCommand cmd = connection.CreateCommand())  //start a  sql command
@@ -236,9 +250,10 @@ namespace CorServCreditCardETL
                                                     {
                                                         int rowsadded = cmd.ExecuteNonQuery();  //run the command and store the row count inserted
                                                     }
-                                                    catch
+                                                    catch (Exception ex)
                                                     {
-                                                        Console.WriteLine("Primary key already exists.");
+                                                        Console.WriteLine("Error: " + ex);
+                                                        Console.WriteLine("Attempted to run SQL Query: " + sqlCmd);
                                                     }
                                                     connection.Close();  //close the sql server connection to the database
                                                 }
@@ -320,6 +335,61 @@ namespace CorServCreditCardETL
                 Console.ReadKey();
                 Environment.Exit(1);
             }
-        }
+
+            string GetBusinessTaxId(string RelationshipTaxID, string RelationshipName)
+            {
+                RelationshipTaxID = RelationshipTaxID.Trim();
+                RelationshipName = RelationshipName.Trim().Replace(",", "").Replace(".", "").Replace("LLC", "").Replace("'", "");
+
+                string sqlCmd = "begin if (select count(RelationshipTaxID) from [dbo].[CVSF_Relationship] where replace(replace(replace(replace(RelationshipName, ',', ''), '.', ''), 'LLC', ''), '''', '') = replace(replace(replace(replace('" + RelationshipName + "', ',', ''), '.', ''), 'LLC', ''), '''', '')) = 0 select '" + RelationshipTaxID + "' else select ISNULL(RelationshipTaxID, '" + RelationshipTaxID + "') from [dbo].[CVSF_Relationship] where replace(replace(replace(replace(RelationshipName, ',', ''), '.', ''), 'LLC', ''), '''', '') = replace(replace(replace(replace('" + RelationshipName + "', ',', ''), '.', ''), 'LLC', ''), '''', '') end";               
+
+                string businessTaxId = RelationshipTaxID;
+                using (SqlConnection connection = new SqlConnection(connectionString))  //connect to the sql server
+                using (SqlCommand cmd = connection.CreateCommand())  //start a  sql command
+                {
+                    try
+                    {
+                        //see if the document name extracted from the filename is in the mapping table
+                        cmd.CommandText = sqlCmd;  //set the commandtext to the sqlcmd
+                        cmd.CommandType = CommandType.Text;  //set it as a text command
+                        try
+                        {
+                            connection.Open();  //open the sql server connection to the database
+                        }
+                        catch
+                        {
+                            Console.WriteLine("SQL Server not available.");
+                            Console.WriteLine("Press any key to exit.");
+                            Console.ReadKey();
+                            Environment.Exit(1);
+                        }
+                        try
+                        {
+                            SqlDataReader sqlDataReader = cmd.ExecuteReader(); //run the command and store value returned
+                            if (sqlDataReader != null)
+                            {
+                                sqlDataReader.Read();
+                                businessTaxId = sqlDataReader.GetString(0);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Error: " + ex);
+                            Console.WriteLine("Attempted to run SQL Query: " + sqlCmd);
+                        }
+                        connection.Close();  //close the sql server connection to the database
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error: " + ex);
+                        Console.WriteLine("Press any key to exit.");
+                        Console.ReadKey();
+                        Environment.Exit(1);
+                    }
+                }
+
+                return businessTaxId;
+            }
+        }       
     }
 }
