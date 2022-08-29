@@ -7,7 +7,8 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
- *   04/01/2022 Use DEBUG appsetting to writeconsole lines
+ * 08/29/2022 Add Switched outfile
+ * 04/01/2022 Use DEBUG appsetting to writeconsole lines
  * 03/16/2022 Update dbo.CORSERV_ACCT_OPENED_BY  
  * 10/20/2021 Use AcctID instead of last 4 for account number and generate GIM records for not open cards  
  * 9/01/2021  Trim card product and generate WF GIM Repair error files    
@@ -25,6 +26,7 @@ namespace CorServCreditCardETL
         public static string filedate = DateTime.Today.ToString("yyyyMMdd");
         public static string useInfile = ConfigurationManager.AppSettings["Infile"].ToString();
         public static string useOutfile = ConfigurationManager.AppSettings["Outfile"].ToString().Replace("~", filedate);
+        public static string useOutfileSwitched = ConfigurationManager.AppSettings["OutfileSwitched"].ToString().Replace("~", filedate);
 
         public static string useErrorfile = ConfigurationManager.AppSettings["ErrorFile"].ToString().Replace("~", filedate);
 
@@ -48,6 +50,7 @@ namespace CorServCreditCardETL
                 }
 
                 try { File.Delete(useOutfile); } catch { }
+                try { File.Delete(useOutfileSwitched); } catch { }
 
                 try
                 {
@@ -192,36 +195,39 @@ namespace CorServCreditCardETL
                                     Datadate_35 = Datadate_35.Replace("/", "").PadRight(100).Substring(0, 8);
                                     string Gap_36 = "".PadRight(1389);
 
+                                    bool isSwitch = false;
                                     if (linein.ElementAt(19) == "Open" && linein.ElementAt(20) != "")
                                     {
                                         if (ProductType.Trim().ToUpper() == "BUSINESS" && Name02out.Trim().ToUpper() != "ACCOUNTS PAYABLE" && (TaxId_01b.Trim() == "" || TaxId_01b.Trim() is null))
                                         {
                                             string busienssTaxID = GetBusinessTaxId(TaxId_01a, Name01out);
 
-                                            if (busienssTaxID != TaxId_01a)
+                                            if (busienssTaxID != null && busienssTaxID.Trim() != "" && busienssTaxID != TaxId_01a)
                                             {
                                                 Console.WriteLine("Swapped " + TaxId_01a + " with " + busienssTaxID);
-                                                PType_06 = "X";
+                                                //PType_06 = "X";
+                                                isSwitch = true;
                                                 TaxId_01a = busienssTaxID;
                                             }                                            
                                         }
 
                                         string lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
-                                        
-                                        /*
-                                        int x = 0;
-                                        while (x < 29)
-                                        {
-                                            Console.WriteLine(" " + x + " " + linein.ElementAt(x).Trim());
-                                            x++;
-                                        }
-                                        */
+                                       
                                         File.AppendAllText(useOutfile, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                        if (isSwitch)
+                                        {
+                                            File.AppendAllText(useOutfileSwitched, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                        }
 
                                         if (TaxId_01b.Trim() != "")
                                         {
                                             string lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
+                                            
                                             File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                            if (isSwitch)
+                                            {
+                                                File.AppendAllText(useOutfileSwitched, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                            }
                                         }
 
                                         if (LoanOfficer.Trim() != "" && LoanOfficer.Trim() != null)
@@ -249,7 +255,7 @@ namespace CorServCreditCardETL
                                                     }
                                                     try
                                                     {
-                                                        if (DebugYN == "Y")
+                                                        if (BackupYN == "Y")
                                                         { Console.WriteLine("Executing sql query:" + sqlCmd); }
                                                         int rowsadded = cmd.ExecuteNonQuery();  //run the command and store the row count inserted
                                                     }
@@ -312,7 +318,7 @@ namespace CorServCreditCardETL
                         File.Copy(useInfile, Renamefile, true);
                     }
 
-                    if (DebugYN == "N")
+                    if (BackupYN == "N")
                     { File.Delete(useInfile); }
                 }
                 catch (Exception ex)
@@ -345,7 +351,7 @@ namespace CorServCreditCardETL
                 RelationshipTaxID = RelationshipTaxID.Trim();
                 RelationshipName = RelationshipName.Trim().Replace(",", "").Replace(".", "").Replace("LLC", "").Replace("'", "");
 
-                string sqlCmd = "begin if (select count(RelationshipTaxID) from [dbo].[CVSF_Relationship] where replace(replace(replace(replace(RelationshipName, ',', ''), '.', ''), 'LLC', ''), '''', '') = replace(replace(replace(replace('" + RelationshipName + "', ',', ''), '.', ''), 'LLC', ''), '''', '')) = 0 select '" + RelationshipTaxID + "' else select ISNULL(RelationshipTaxID, '" + RelationshipTaxID + "') from [dbo].[CVSF_Relationship] where replace(replace(replace(replace(RelationshipName, ',', ''), '.', ''), 'LLC', ''), '''', '') = replace(replace(replace(replace('" + RelationshipName + "', ',', ''), '.', ''), 'LLC', ''), '''', '') end";               
+                string sqlCmd = "begin if (select count(RelationshipTaxID) from [dbo].[CVSF_Relationship] where replace(replace(replace(replace(RelationshipName, ',', ''), '.', ''), 'LLC', ''), '''', '') = replace(replace(replace(replace('" + RelationshipName + "', ',', ''), '.', ''), 'LLC', ''), '''', '')) = 0 select '" + RelationshipTaxID + "' else select ISNULL(RelationshipTaxID, '" + RelationshipTaxID + "') from [dbo].[CVSF_Relationship] where replace(replace(replace(replace(RelationshipName, ',', ''), '.', ''), 'LLC', ''), '''', '') = replace(replace(replace(replace('" + RelationshipName + "', ',', ''), '.', ''), 'LLC', ''), '''', '') and RelationshipType != 'INDIVIDUAL' end";               
 
                 string businessTaxId = RelationshipTaxID;
                 using (SqlConnection connection = new SqlConnection(connectionString))  //connect to the sql server
