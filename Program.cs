@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 01/30/2023 Fixed program exiting on missing product code
  * 08/29/2022 Add Switched outfile
  * 04/01/2022 Use DEBUG appsetting to writeconsole lines
  * 03/16/2022 Update dbo.CORSERV_ACCT_OPENED_BY  
@@ -196,6 +197,8 @@ namespace CorServCreditCardETL
                                     string Gap_36 = "".PadRight(1389);
 
                                     bool isSwitch = false;
+                                    bool isUnmatched = false;
+
                                     if (linein.ElementAt(19) == "Open" && linein.ElementAt(20) != "")
                                     {
                                         if (ProductType.Trim().ToUpper() == "BUSINESS" && Name02out.Trim().ToUpper() != "ACCOUNTS PAYABLE" && (TaxId_01b.Trim() == "" || TaxId_01b.Trim() is null))
@@ -204,10 +207,14 @@ namespace CorServCreditCardETL
 
                                             if (busienssTaxID != null && busienssTaxID.Trim() != "" && busienssTaxID != TaxId_01a)
                                             {
-                                                Console.WriteLine("Swapped " + TaxId_01a + " with " + busienssTaxID);
-                                                //PType_06 = "X";
+                                                //Console.WriteLine("Swapped " + TaxId_01a.ToString() + " with " + busienssTaxID.ToString());
                                                 isSwitch = true;
                                                 TaxId_01a = busienssTaxID;
+                                            }
+                                            else if (busienssTaxID == TaxId_01a || busienssTaxID != null ||  busienssTaxID.Trim() != "")
+                                            {
+                                                //Console.WriteLine("Could not find business tax id for " + TaxId_01a.ToString());
+                                                isUnmatched = true;
                                             }                                            
                                         }
 
@@ -216,7 +223,11 @@ namespace CorServCreditCardETL
                                         File.AppendAllText(useOutfile, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
                                         if (isSwitch)
                                         {
-                                            File.AppendAllText(useOutfileSwitched, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                            File.AppendAllText(useOutfileSwitched, "S" + lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                        }
+                                        if (isUnmatched)
+                                        {
+                                            File.AppendAllText(useOutfileSwitched, "U" + lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
                                         }
 
                                         if (TaxId_01b.Trim() != "")
@@ -226,13 +237,18 @@ namespace CorServCreditCardETL
                                             File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
                                             if (isSwitch)
                                             {
-                                                File.AppendAllText(useOutfileSwitched, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                                File.AppendAllText(useOutfileSwitched, "S" + lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
+                                            }
+                                            if (isUnmatched)
+                                            {
+                                                File.AppendAllText(useOutfileSwitched, "U" + lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
                                             }
                                         }
 
                                         if (LoanOfficer.Trim() != "" && LoanOfficer.Trim() != null)
                                         {       
-                                            String sqlCmd = "Insert Into " + dbtable + " ([AccountID], [LoanOfficerFInancialAdvisor], [NAME1SSN], [Last4OfCard]) Values ('" + AcctId.Trim() + "', '" + LoanOfficer.Trim() + "', '" + TaxId_01a.Trim() + "', '" + AcctNum_02 + "')";                                            
+                                            String sqlCmd = "Insert Into " + dbtable + " ([AccountID], [LoanOfficerFInancialAdvisor], [NAME1SSN], [Last4OfCard]) Values ('" + AcctId.Trim() + "', '" + LoanOfficer.Trim() + "', '" + TaxId_01a.Trim() + "', '" + AcctNum_02.Trim() + "')";
+                                            String sqlCmd2 = "Update " + dbtable + " Set [LoanOfficerFInancialAdvisor] = '" + LoanOfficer.Trim() + "', [NAME1SSN] = '" + TaxId_01a.Trim() + "', [Last4OfCard] = '" + AcctNum_02.Trim() + "' Where [AccountID] = '" + AcctId.Trim() + "'";
 
                                             using (SqlConnection connection = new SqlConnection(connectionString))  //connect to the sql server
                                             using (SqlCommand cmd = connection.CreateCommand())  //start a  sql command
@@ -242,6 +258,7 @@ namespace CorServCreditCardETL
                                                     //see if the document name extracted from the filename is in the mapping table
                                                     cmd.CommandText = sqlCmd;  //set the commandtext to the sqlcmd
                                                     cmd.CommandType = CommandType.Text;  //set it as a text command
+
                                                     try
                                                     {
                                                         connection.Open();  //open the sql server connection to the database
@@ -249,28 +266,47 @@ namespace CorServCreditCardETL
                                                     catch
                                                     {
                                                         Console.WriteLine("SQL Server not available.");
-                                                        Console.WriteLine("Press any key to exit.");
-                                                        Console.ReadKey();
                                                         Environment.Exit(1);
                                                     }
+
                                                     try
-                                                    {
-                                                        if (BackupYN == "Y")
-                                                        { Console.WriteLine("Executing sql query:" + sqlCmd); }
+                                                    {                                                        
                                                         int rowsadded = cmd.ExecuteNonQuery();  //run the command and store the row count inserted
+                                                        Console.WriteLine("Inserted " + rowsadded.ToString() + " rows when executing sql query:" + sqlCmd);
                                                     }
-                                                    catch (Exception ex)
+                                                    catch
                                                     {
-                                                        Console.WriteLine("Error: " + ex);
-                                                        Console.WriteLine("Attempted to run SQL Query: " + sqlCmd);
+                                                        try
+                                                        {
+                                                            //see if the document name extracted from the filename is in the mapping table
+                                                            cmd.CommandText = sqlCmd2;  //set the commandtext to the sqlcmd2
+                                                            cmd.CommandType = CommandType.Text;  //set it as a text command
+
+                                                            try
+                                                            {                                                                
+                                                                int rowsupdated = cmd.ExecuteNonQuery();  //run the command and store the row count updated
+                                                                Console.WriteLine("Updated " + rowsupdated.ToString() + " rows when executing sql query:" + sqlCmd2);
+                                                            }
+                                                            catch (Exception ex)
+                                                            {
+                                                                Console.WriteLine("Error: " + ex);
+                                                                Console.WriteLine("Attempted to run SQL Query: " + sqlCmd2);
+                                                            }
+
+                                                            connection.Close();  //close the sql server connection to the database
+                                                        }
+                                                        catch (Exception ex)
+                                                        {
+                                                            Console.WriteLine("Error: " + ex);
+                                                            Environment.Exit(1);
+                                                        }
                                                     }
+
                                                     connection.Close();  //close the sql server connection to the database
                                                 }
                                                 catch (Exception ex)
                                                 {
                                                     Console.WriteLine("Error: " + ex);
-                                                    Console.WriteLine("Press any key to exit.");
-                                                    Console.ReadKey();
                                                     Environment.Exit(1);
                                                 }
                                             }
@@ -298,13 +334,11 @@ namespace CorServCreditCardETL
 
                             if (found == 0)
                             {
-                                string ErrorLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "Notification".PadRight(100).Substring(0, 25) + "||CORSERV|Product name " + CreditCardProducts.Trim() + " Not found in " + useAppSetting.Trim();
+                                string ErrorLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "Notification".PadRight(100).Substring(0, 25) + "||CORSERV|Product name " + CreditCardProducts.Trim() + " Not found in " + useAppSetting.Trim() + "\n";
                                 File.AppendAllText(useErrorfile, ErrorLine);
                                 
                                 Console.WriteLine(ErrorLine);
-                                Console.WriteLine("Press any key to exit.");
-                                Console.ReadKey();
-                                Environment.Exit(9);
+                                //Environment.Exit(9);
                             }
                         }
 
@@ -328,8 +362,6 @@ namespace CorServCreditCardETL
                     File.AppendAllText(useErrorfile, ErrorLine);
 
                     Console.WriteLine("Error: " + ex);
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadKey();
                     Environment.Exit(1);
                 }
                 finally
@@ -340,9 +372,6 @@ namespace CorServCreditCardETL
             catch (Exception ex)
             {
                 Console.WriteLine("Config file does not exist or does not meet requirements.");
-                Console.WriteLine("Error: " + ex);
-                Console.WriteLine("Press any key to exit.");
-                Console.ReadKey();
                 Environment.Exit(1);
             }
 
@@ -369,8 +398,6 @@ namespace CorServCreditCardETL
                         catch
                         {
                             Console.WriteLine("SQL Server not available.");
-                            Console.WriteLine("Press any key to exit.");
-                            Console.ReadKey();
                             Environment.Exit(1);
                         }
                         try
@@ -379,7 +406,10 @@ namespace CorServCreditCardETL
                             if (sqlDataReader != null)
                             {
                                 sqlDataReader.Read();
-                                businessTaxId = sqlDataReader.GetString(0);
+                                if (sqlDataReader != null && sqlDataReader.HasRows)
+                                {
+                                    businessTaxId = sqlDataReader.GetString(0);
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -392,8 +422,6 @@ namespace CorServCreditCardETL
                     catch (Exception ex)
                     {
                         Console.WriteLine("Error: " + ex);
-                        Console.WriteLine("Press any key to exit.");
-                        Console.ReadKey();
                         Environment.Exit(1);
                     }
                 }
