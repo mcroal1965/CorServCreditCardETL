@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 01/31/2023 Add user code
  * 01/30/2023 Fixed program exiting on missing product code
  * 08/29/2022 Add Switched outfile
  * 04/01/2022 Use DEBUG appsetting to writeconsole lines
@@ -33,6 +34,7 @@ namespace CorServCreditCardETL
 
         public static string useAppSetting = ConfigurationManager.AppSettings["AppSetting"].ToString();
         public static string BackupYN = "N";
+        public static string DebugYN = "N";
 
         public static String connectionString = "Server=" + dbserver + ";Database=" + dbdatabase + @";User Id=viewer;Password=cprt_hsi";
 
@@ -48,6 +50,16 @@ namespace CorServCreditCardETL
                 {
                     Console.WriteLine("BackupYN value in config file is not configured properly and has been defaulted to N.");
                     BackupYN = "N";
+                }
+
+                try
+                {
+                    DebugYN = ConfigurationManager.AppSettings["Debug"].ToString();
+                }
+                catch
+                {
+                    Console.WriteLine("DebugYN value in config file is not configured properly and has been defaulted to N.");
+                    DebugYN = "N";
                 }
 
                 try { File.Delete(useOutfile); } catch { }
@@ -194,7 +206,15 @@ namespace CorServCreditCardETL
                                     CurrentBal_34 = CurrentBal_34.PadRight(100).Substring(0, 15);
                                     string Datadate_35 = linein.ElementAt(0).Trim();
                                     Datadate_35 = Datadate_35.Replace("/", "").PadRight(100).Substring(0, 8);
-                                    string Gap_36 = "".PadRight(1389);
+                                    string OrigBal3 = "".PadRight(15);
+                                    string BalType4 = "".PadRight(47);
+                                    string BalType5 = "".PadRight(47);
+                                    string UserInfo_1A = "CCPD";
+                                    string UserInfo_1B = linein.ElementAt(22).Trim();
+                                    UserInfo_1B = UserInfo_1B.PadRight(100).Substring(0, 60);
+                                    string Gap_36 = "".PadRight(1216);
+
+
 
                                     bool isSwitch = false;
                                     bool isUnmatched = false;
@@ -218,8 +238,8 @@ namespace CorServCreditCardETL
                                             }                                            
                                         }
 
-                                        string lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
-                                       
+                                        string lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + UserInfo_1A + UserInfo_1B + Gap_36;
+
                                         File.AppendAllText(useOutfile, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
                                         if (isSwitch)
                                         {
@@ -232,8 +252,8 @@ namespace CorServCreditCardETL
 
                                         if (TaxId_01b.Trim() != "")
                                         {
-                                            string lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + Gap_36;
-                                            
+                                            string lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + UserInfo_1A + UserInfo_1B + Gap_36;
+
                                             File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
                                             if (isSwitch)
                                             {
@@ -272,7 +292,7 @@ namespace CorServCreditCardETL
                                                     try
                                                     {                                                        
                                                         int rowsadded = cmd.ExecuteNonQuery();  //run the command and store the row count inserted
-                                                        Console.WriteLine("Inserted " + rowsadded.ToString() + " rows when executing sql query:" + sqlCmd);
+                                                        if (DebugYN == "Y") Console.WriteLine("Inserted " + rowsadded.ToString() + " rows when executing sql query:" + sqlCmd);
                                                     }
                                                     catch
                                                     {
@@ -285,7 +305,7 @@ namespace CorServCreditCardETL
                                                             try
                                                             {                                                                
                                                                 int rowsupdated = cmd.ExecuteNonQuery();  //run the command and store the row count updated
-                                                                Console.WriteLine("Updated " + rowsupdated.ToString() + " rows when executing sql query:" + sqlCmd2);
+                                                                if (DebugYN == "Y") Console.WriteLine("Updated " + rowsupdated.ToString() + " rows when executing sql query:" + sqlCmd2);
                                                             }
                                                             catch (Exception ex)
                                                             {
@@ -372,6 +392,7 @@ namespace CorServCreditCardETL
             catch (Exception ex)
             {
                 Console.WriteLine("Config file does not exist or does not meet requirements.");
+                Console.WriteLine("Error: " + ex);
                 Environment.Exit(1);
             }
 
