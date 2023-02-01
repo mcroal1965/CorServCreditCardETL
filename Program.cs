@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 02/01/2023 Change last 4 in email to be last 4 of account id and added user code config
  * 01/31/2023 Add user code
  * 01/30/2023 Fixed program exiting on missing product code
  * 08/29/2022 Add Switched outfile
@@ -35,6 +36,7 @@ namespace CorServCreditCardETL
         public static string useAppSetting = ConfigurationManager.AppSettings["AppSetting"].ToString();
         public static string BackupYN = "N";
         public static string DebugYN = "N";
+        public static string UserCodesYN = "N";
 
         public static String connectionString = "Server=" + dbserver + ";Database=" + dbdatabase + @";User Id=viewer;Password=cprt_hsi";
 
@@ -60,6 +62,16 @@ namespace CorServCreditCardETL
                 {
                     Console.WriteLine("DebugYN value in config file is not configured properly and has been defaulted to N.");
                     DebugYN = "N";
+                }
+
+                try
+                {
+                    UserCodesYN = ConfigurationManager.AppSettings["UserCodes"].ToString();
+                }
+                catch
+                {
+                    Console.WriteLine("UserCodesYN value in config file is not configured properly and has been defaulted to N.");
+                    UserCodesYN = "N";
                 }
 
                 try { File.Delete(useOutfile); } catch { }
@@ -212,6 +224,7 @@ namespace CorServCreditCardETL
                                     string UserInfo_1A = "CCPD";
                                     string UserInfo_1B = linein.ElementAt(22).Trim();
                                     UserInfo_1B = UserInfo_1B.PadRight(100).Substring(0, 60);
+                                    string NoUserCodeGap = "".PadRight(64);
                                     string Gap_36 = "".PadRight(1216);
 
 
@@ -238,7 +251,12 @@ namespace CorServCreditCardETL
                                             }                                            
                                         }
 
-                                        string lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + UserInfo_1A + UserInfo_1B + Gap_36;
+                                        string lineout;
+                                        
+                                        if (UserCodesYN == "Y")
+                                            lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + UserInfo_1A + UserInfo_1B + Gap_36;
+                                        else
+                                            lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + NoUserCodeGap + Gap_36;
 
                                         File.AppendAllText(useOutfile, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
                                         if (isSwitch)
@@ -252,8 +270,13 @@ namespace CorServCreditCardETL
 
                                         if (TaxId_01b.Trim() != "")
                                         {
-                                            string lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + UserInfo_1A + UserInfo_1B + Gap_36;
+                                            string lineout2;
 
+                                            if (UserCodesYN == "Y")
+                                                lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + UserInfo_1A + UserInfo_1B + Gap_36;
+                                            else
+                                                lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + NoUserCodeGap + Gap_36;
+                                            
                                             File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
                                             if (isSwitch)
                                             {
@@ -336,14 +359,16 @@ namespace CorServCreditCardETL
                                     {
                                         if (linein.ElementAt(19) != "Open")
                                         {
+                                            AcctId = AcctId.Trim();
+
                                             if (Name01out == "".PadRight(100).Substring(0, 40) || Name01out is null)
-                                            {
-                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctNum_02.Trim() + "|" + TaxId_01a.Trim() + "-" + Name02outError.Trim() + "\n";
+                                            {                                                
+                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctId.Substring(AcctId.Length - 4, 4).Trim() + "|" + TaxId_01a.Trim() + "-" + Name02outError.Trim() + "\n";
                                                 File.AppendAllText(useErrorfile, CardLine);
                                             }
                                             else
                                             {
-                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctNum_02.Trim() + "|" + TaxId_01a.Trim() + "-" + Name01outError.Trim() + "\n";
+                                                string CardLine = "WF GIM Repair".PadRight(100).Substring(0, 20) + "NOTIFY_CARD_NOT_OPEN".PadRight(100).Substring(0, 25) + "||" + AcctId.Substring(AcctId.Length - 4, 4).Trim() + "|" + TaxId_01a.Trim() + "-" + Name01outError.Trim() + "\n";
                                                 File.AppendAllText(useErrorfile, CardLine);
                                             }
                                         }
