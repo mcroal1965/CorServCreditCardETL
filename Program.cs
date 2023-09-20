@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
 /*   CHANGE LOG
+ * 09/20/2023 Using new Business Tax id field instead of sql query for swaping tax ids
  * 02/01/2023 Change last 4 in email to be last 4 of account id and added user code config
  * 01/31/2023 Add user code
  * 01/30/2023 Fixed program exiting on missing product code
@@ -29,7 +30,7 @@ namespace CorServCreditCardETL
         public static string filedate = DateTime.Today.ToString("yyyyMMdd");
         public static string useInfile = ConfigurationManager.AppSettings["Infile"].ToString();
         public static string useOutfile = ConfigurationManager.AppSettings["Outfile"].ToString().Replace("~", filedate);
-        public static string useOutfileSwitched = ConfigurationManager.AppSettings["OutfileSwitched"].ToString().Replace("~", filedate);
+        //public static string useOutfileSwitched = ConfigurationManager.AppSettings["OutfileSwitched"].ToString().Replace("~", filedate);
 
         public static string useErrorfile = ConfigurationManager.AppSettings["ErrorFile"].ToString().Replace("~", filedate);
 
@@ -75,7 +76,7 @@ namespace CorServCreditCardETL
                 }
 
                 try { File.Delete(useOutfile); } catch { }
-                try { File.Delete(useOutfileSwitched); } catch { }
+                //try { File.Delete(useOutfileSwitched); } catch { }
 
                 try
                 {
@@ -106,7 +107,6 @@ namespace CorServCreditCardETL
                             {
                                 string CreditCardProducts = str.Substring(str.IndexOf("Mastercard"), str.IndexOf("\t", str.IndexOf("Mastercard")) - str.IndexOf("Mastercard"));
                                 CreditCardProducts = CreditCardProducts.Replace("®", "").Trim();
-                                //Console.WriteLine(CreditCardProducts);
                                 Int32 found = 0;
 
                                 string sep = "\t";
@@ -227,31 +227,32 @@ namespace CorServCreditCardETL
                                         UserInfo_1B = UserInfo_1B.PadRight(100).Substring(0, 60);
                                         string NoUserCodeGap = "".PadRight(64);
                                         string Gap_36 = "".PadRight(1216);
-
+                                        
 
 
                                         bool isSwitch = false;
                                         bool isUnmatched = false;
 
+                                        
+                                        if (ProductType.Trim().ToUpper() == "BUSINESS") //&& Name02out.Trim().ToUpper() != "ACCOUNTS PAYABLE")
+                                        {
+                                            string busienssTaxID = linein.ElementAt(81); //GetBusinessTaxId(TaxId_01a, Name01out);
+
+                                            if (busienssTaxID != null && busienssTaxID.Trim() != "" && busienssTaxID != TaxId_01a)
+                                            {
+                                                Console.WriteLine("Swapped " + TaxId_01a.ToString() + " with " + busienssTaxID.ToString());
+                                                isSwitch = true;
+                                                TaxId_01a = busienssTaxID;
+                                            }
+                                            else if (busienssTaxID == TaxId_01a || busienssTaxID != null || busienssTaxID.Trim() != "")
+                                            {
+                                                Console.WriteLine("Could not find business tax id for " + TaxId_01a.ToString());
+                                                isUnmatched = true;
+                                            }
+                                        }
+
                                         if (linein.ElementAt(19) == "Open" && linein.ElementAt(20) != "")
                                         {
-                                            if (ProductType.Trim().ToUpper() == "BUSINESS" && Name02out.Trim().ToUpper() != "ACCOUNTS PAYABLE" && (TaxId_01b.Trim() == "" || TaxId_01b.Trim() is null))
-                                            {
-                                                string busienssTaxID = GetBusinessTaxId(TaxId_01a, Name01out);
-
-                                                if (busienssTaxID != null && busienssTaxID.Trim() != "" && busienssTaxID != TaxId_01a)
-                                                {
-                                                    //Console.WriteLine("Swapped " + TaxId_01a.ToString() + " with " + busienssTaxID.ToString());
-                                                    isSwitch = true;
-                                                    TaxId_01a = busienssTaxID;
-                                                }
-                                                else if (busienssTaxID == TaxId_01a || busienssTaxID != null || busienssTaxID.Trim() != "")
-                                                {
-                                                    //Console.WriteLine("Could not find business tax id for " + TaxId_01a.ToString());
-                                                    isUnmatched = true;
-                                                }
-                                            }
-
                                             string lineout;
 
                                             if (UserCodesYN == "Y")
@@ -260,14 +261,14 @@ namespace CorServCreditCardETL
                                                 lineout = TaxId_01a + AcctId + MajorCode_03 + MinorCode_04 + Name01out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + NoUserCodeGap + Gap_36;
 
                                             File.AppendAllText(useOutfile, lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
-                                            if (isSwitch)
+                                            /*if (isSwitch)
                                             {
                                                 File.AppendAllText(useOutfileSwitched, "S" + lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
                                             }
                                             if (isUnmatched)
                                             {
                                                 File.AppendAllText(useOutfileSwitched, "U" + lineout.Replace("\n", null).Replace("\r", null) + "\r\n");
-                                            }
+                                            }*/
 
                                             if (TaxId_01b.Trim() != "")
                                             {
@@ -279,14 +280,14 @@ namespace CorServCreditCardETL
                                                     lineout2 = TaxId_01b + AcctId + MajorCode_03 + MinorCode_04 + Name02out + PType_06 + Gap_07 + AddrLine1_08 + AddrLine2_09 + Gap_10 + City_11 + State_12 + Zipcode_13 + Gap_14 + Arecode_15 + Exchange_16 + Phone_17 + Gap_18 + Intrate_19 + Gap_20 + AvailableCredit_21 + DateOpen_22 + MatDate_23 + Gap_24 + Gap_25 + Gap_26 + CreditLimit_27 + Gap_28 + Gap_29 + PaymentDue_30 + MinPayment_31 + Gap_32 + Static_33 + CurrentBal_34 + Datadate_35 + OrigBal3 + BalType4 + BalType5 + NoUserCodeGap + Gap_36;
 
                                                 File.AppendAllText(useOutfile, lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
-                                                if (isSwitch)
+                                                /*if (isSwitch)
                                                 {
                                                     File.AppendAllText(useOutfileSwitched, "S" + lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
                                                 }
                                                 if (isUnmatched)
                                                 {
                                                     File.AppendAllText(useOutfileSwitched, "U" + lineout2.Replace("\n", null).Replace("\r", null) + "\r\n");
-                                                }
+                                                }*/
                                             }
 
                                             if (LoanOfficer.Trim() != "" && LoanOfficer.Trim() != null)
@@ -423,6 +424,7 @@ namespace CorServCreditCardETL
                 Environment.Exit(1);
             }
 
+            /*
             string GetBusinessTaxId(string RelationshipTaxID, string RelationshipName)
             {
                 RelationshipTaxID = RelationshipTaxID.Trim();
@@ -476,6 +478,7 @@ namespace CorServCreditCardETL
 
                 return businessTaxId;
             }
+            */
         }       
     }
 }
