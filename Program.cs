@@ -233,18 +233,26 @@ namespace CorServCreditCardETL
                                         bool isSwitch = false;
                                         bool isUnmatched = false;
 
-                                        
+
                                         if (ProductType.Trim().ToUpper() == "BUSINESS") //&& Name02out.Trim().ToUpper() != "ACCOUNTS PAYABLE")
                                         {
-                                            string busienssTaxID = linein.ElementAt(81); //GetBusinessTaxId(TaxId_01a, Name01out);
-
-                                            if (busienssTaxID != null && busienssTaxID.Trim() != "" && busienssTaxID != TaxId_01a)
+                                            if (linein.Count >= 82)
                                             {
-                                                Console.WriteLine("Swapped " + TaxId_01a.ToString() + " with " + busienssTaxID.ToString());
-                                                isSwitch = true;
-                                                TaxId_01a = busienssTaxID;
+                                                string busienssTaxID = linein.ElementAt(81); //GetBusinessTaxId(TaxId_01a, Name01out);
+
+                                                if (busienssTaxID != null && busienssTaxID.Trim() != "")
+                                                {
+                                                    Console.WriteLine("Swapped " + TaxId_01a.ToString() + " with " + busienssTaxID.ToString());
+                                                    isSwitch = true;
+                                                    TaxId_01a = busienssTaxID;
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine("Could not find business tax id for " + TaxId_01a.ToString());
+                                                    isUnmatched = true;
+                                                }
                                             }
-                                            else if (busienssTaxID == TaxId_01a || busienssTaxID != null || busienssTaxID.Trim() != "")
+                                            else
                                             {
                                                 Console.WriteLine("Could not find business tax id for " + TaxId_01a.ToString());
                                                 isUnmatched = true;
